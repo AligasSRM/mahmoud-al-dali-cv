@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - "mahmoud-circle-temp.svg"
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,8 +15,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y imagemagick
           convert -background none mahmoud-circle-temp.svg mahmoud-circle-temp.png
-      - name: Upload PNG artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: circular-photo-png
-          path: mahmoud-circle-temp.png
+      - name: Commit PNG
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mahmoud-circle-temp.png
+          git diff --cached --quiet || git commit -m "Build circular CV photo PNG"
+          git push
