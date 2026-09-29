@@ -1,0 +1,66 @@
+name: Build CV PDF
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CV
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Puppeteer
+        run: npm install puppeteer@latest
+
+      - name: Build PDF from CV
+        run: |
+          python3 -m http.server 8080 --directory . >/tmp/cv-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 2
+          node <<'NODE'
+          const puppeteer = require('puppeteer');
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+
+            const page = await browser.newPage();
+            await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+            await page.goto('http://127.0.0.1:8080/index.html', {
+              waitUntil: 'networkidle0'
+            });
+
+            await page.emulateMediaType('print');
+            await page.pdf({
+              path: 'Mahmoud-Nabil-Al-Dali-CV.pdf',
+              format: 'A4',
+              printBackground: true,
+              preferCSSPageSize: true,
+              margin: { top: '0', right: '0', bottom: '0', left: '0' }
+            });
+
+            await browser.close();
+          })();
+          NODE
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mahmoud-nabil-al-dali-cv
+          path: Mahmoud-Nabil-Al-Dali-CV.pdf
+          if-no-files-found: error
+          retention-days: 30
